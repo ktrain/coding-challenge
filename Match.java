@@ -10,40 +10,70 @@ import org.json.*;
 
 public class Match
 {
+  public static final String PRODUCT_NAME = "product_name";
+  public static final String PRODUCT_MANUFACTURER = "manufacturer";
+  public static final String PRODUCT_MODEL = "model";
+  public static final String PRODUCT_DATE = "announced-date";
+
+  public static final String LISTING_TITLE = "title";
+  public static final String LISTING_MANUFACTURER = "manufacturer";
+  public static final String LISTING_CURRENCY = "currency";
+  public static final String LISTING_PRICE = "price";
+
+  public static final String PRODUCT_FILE = "products.txt";
+  public static final String LISTING_FILE = "listings.txt";
+  public static final String RESULT_FILE = "results.txt";
+
   public static void main( String[] args )
   {
-    String learnFilename = "products.txt";
-    String matchFilename = "listings.txt";
-    String resultFilename = "results.txt";
-    FileReader learnReader;
+    FileReader productReader;
+    FileReader listingReader;
     FileWriter resultWriter;
     JSONTokener toke;
-    Stack<JSONObject> s = new Stack<JSONObject>();
+    Stack<JSONObject> productStack = new Stack<JSONObject>();
+    Stack<JSONObject> listingStack = new Stack<JSONObject>();
 
     try {
-      learnReader = new FileReader( learnFilename );
-      resultWriter = new FileWriter( resultFilename );
-      toke = new JSONTokener( learnReader );
+      // open up the product, listing, and result files
+      productReader = new FileReader( LEARN_FILE );
+      listingReader = new FileReader( MATCH_FILE );
+      resultWriter = new JSONWriter( new FileWriter( RESULT_FILE ) );
+
+      // read the product file
+      toke = new JSONTokener( productReader );
       while ( toke.more() ) {
-        //s.push( new JSONObject( toke ) );
-        resultWriter.write( new JSONObject( toke ).toString() );
+        // get the next line
+        String str = toke.nextTo( '\n' );
+        // discard the newline
+        toke.next();
+
+        // convert the string to JSON and put it on the product stack
+        productStack.push( new JSONObject( str ) );
       }
+      productReader.close();
+
+      // read the listing file
+      toke = new JSONTokener( listingReader );
+      while ( toke.more() ) {
+        // get the next line
+        String str = toke.nextTo( '\n' );
+        toke.next();
+
+        // convert the string to JSON and put it on the listing stack
+        listingStack.push( new JSONObject( str ) );
+      }
+      listingReader.close();
+
+      // compare products and listings
+      
+      // write the results to disk
+      // ...
+      resultWriter.close();
+
     } catch ( Exception e ) {
+      System.err.println( "that was exceptional!" );
       System.err.println( e );
-      /*Iterator i = s.iterator();
-      while ( i.hasNext() ) {
-        System.err.println( i.next() );
-      }*/
       System.exit( 1 );
     }
-
-    try {
-      learnReader.close();
-      resultWriter.flush();
-      resultWriter.close();
-    } catch ( Exception e ) {
-    }
-
   }
-
 }
