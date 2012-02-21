@@ -1,7 +1,9 @@
 default: Match.java
 	@echo "Compiling Match ..."
 	javac Match.java
-	@echo "The warnings are from org.json ..."
+	@echo ""
+	@echo "If there are warnings, they're from org.json ..."
+	@echo ""
 
 clean:
 	@echo "Cleaning ..."

@@ -24,13 +24,44 @@ public class Match
   public static final String LISTING_FILE = "listings.txt";
   public static final String RESULT_FILE = "results.txt";
 
+  /*
+   * processJSONFile()
+   * reads strings from r, expecting one JSON object per line.
+   * converts the strings to JSONObjects and pushes them onto s.
+   */
+  protected void processJSONFile( FileReader r, Stack<JSONObject> s )
+  {
+    try {
+      // create a JSONTokener to read r
+      JSONTokener toke = new JSONTokener( r );
+      while ( toke.more() ) {
+        // get the next line
+        String str = toke.nextTo( '\n' );
+        // discard the newline
+        toke.next();
+
+        // convert the string to JSON and put it on the product stack
+        s.push( new JSONObject( str ) );
+      }
+    } catch ( Exception e ) {
+      System.err.println( "that was exceptional!" );
+      System.err.println( e );
+      System.exit( 2 );
+    }
+  }
+
+
+  /*
+   * main()
+   * reads and cross-matches the product and listing files,
+   * writing the results to disk
+   */
   public static void main( String[] args )
   {
     FileReader productReader;
     FileReader listingReader;
     FileWriter resultWriter;
     JSONWriter jsonWriter;
-    JSONTokener toke;
     Stack<JSONObject> productStack = new Stack<JSONObject>();
     Stack<JSONObject> listingStack = new Stack<JSONObject>();
 
@@ -42,28 +73,11 @@ public class Match
       jsonWriter = new JSONWriter( resultWriter );
 
       // read the product file
-      toke = new JSONTokener( productReader );
-      while ( toke.more() ) {
-        // get the next line
-        String str = toke.nextTo( '\n' );
-        // discard the newline
-        toke.next();
-
-        // convert the string to JSON and put it on the product stack
-        productStack.push( new JSONObject( str ) );
-      }
+      processJSONFile( productReader, productStack );
       productReader.close();
 
       // read the listing file
-      toke = new JSONTokener( listingReader );
-      while ( toke.more() ) {
-        // get the next line
-        String str = toke.nextTo( '\n' );
-        toke.next();
-
-        // convert the string to JSON and put it on the listing stack
-        listingStack.push( new JSONObject( str ) );
-      }
+      processJSONFile( listingReader, listingStack );
       listingReader.close();
 
       // compare products and listings
