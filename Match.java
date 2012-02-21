@@ -29,15 +29,17 @@ public class Match
     FileReader productReader;
     FileReader listingReader;
     FileWriter resultWriter;
+    JSONWriter jsonWriter;
     JSONTokener toke;
     Stack<JSONObject> productStack = new Stack<JSONObject>();
     Stack<JSONObject> listingStack = new Stack<JSONObject>();
 
     try {
       // open up the product, listing, and result files
-      productReader = new FileReader( LEARN_FILE );
-      listingReader = new FileReader( MATCH_FILE );
-      resultWriter = new JSONWriter( new FileWriter( RESULT_FILE ) );
+      productReader = new FileReader( PRODUCT_FILE );
+      listingReader = new FileReader( LISTING_FILE );
+      resultWriter = new FileWriter( RESULT_FILE );
+      jsonWriter = new JSONWriter( resultWriter );
 
       // read the product file
       toke = new JSONTokener( productReader );
@@ -68,6 +70,8 @@ public class Match
       
       // write the results to disk
       // ...
+      System.out.println( "Results written to results.txt." );
+      jsonWriter = null;
       resultWriter.close();
 
     } catch ( Exception e ) {
