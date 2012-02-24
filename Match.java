@@ -30,18 +30,28 @@ public class Match
   public static final String LISTING_FILE = "listings.txt";
   public static final String RESULT_FILE = "results.txt";
 
-  protected static HashMap<String,String> productsMap =
-      new HashMap<String,String>();
   protected static HashMap<String,Stack<JSONObject>> resultsMap =
       new HashMap<String,Stack<JSONObject>>();
   protected static HashMap<String,Stack<JSONObject>> manufacturerMap =
       new HashMap<String,Stack<JSONObject>>();
 
 
+  protected static void handleException( Exception e )
+  {
+    System.err.println( e );
+    System.err.println( e.getMessage() );
+    System.err.println( e.getStackTrace() );
+    System.exit( 1 );
+  }
+
+
   protected static String normalizeString( String s )
   {
+    // replace non-english characters?
     /*String t = Normalizer.normalize( s, Normalizer.Form.NFD );
+    // put the string to lowercase and remove excess whitespace
     t = t.toLowerCase().trim();
+    // remove non-alphanumeric characters?
     //t = t.replaceAll( "[^a-z0-9\":{}, ]", "" );
     return t;*/
     return s.toLowerCase().trim();
@@ -50,134 +60,133 @@ public class Match
 
   /*
    * processProductFile()
-   * reads strings from r, expecting one JSON object per line.
-   * normalizes all strings to convert non-english characters.
-   * converts the strings to JSONObjects and pushes them onto s.
+   * Reads strings from r, expecting one JSON object per line.
+   * Normalizes all strings and converts the strings to JSONObjects.
+   * Fills the manufacturerMap, which maps a manufacturer name to
+   * the list of products that the manufacturer produces.
+   * Also initializes the resultsMap with each product name mapping to
+   * an empty list.
    */
   protected static void processProductFile( FileReader r )
   {
     try {
       // create a JSONTokener to read r
-      JSONTokener toke = new JSONTokener( r );
-      while ( toke.more() ) {
+      JSONTokener tokener = new JSONTokener( r );
+      while ( tokener.more() ) {
         // get the next line
-        String str = toke.nextTo( '\n' );
+        String str = tokener.nextTo( '\n' );
         // discard the newline
-        toke.next();
-
-        // map normalized product name to pristine product name
+        tokener.next();
+        // normalize the string
         String con = normalizeString( str );
-        JSONObject o = new JSONObject( con );
-        JSONObject po = new JSONObject( str );
-        productsMap.put( o.getString( PRODUCT_NAME ),
-            po.getString( PRODUCT_NAME ) );
-        resultsMap.put( po.getString( PRODUCT_NAME ), new Stack<JSONObject>() );
 
-        // convert the normalized string to JSON and
+        // create JSONObjects from both the normalized and original strings
+        JSONObject product = new JSONObject( con );
+        // set the PRODUCT_NAME of the normalized object to the original name,
+        // because we want the original, non-normalized name in the output and
+        // it's not needed for processing
+        String name = new JSONObject( str ).getString( PRODUCT_NAME );
+        product.put( PRODUCT_NAME, name );
+        resultsMap.put( name, new Stack<JSONObject>() );
+
         // put the product on the appropriate manufacturer stack
-        String manufacturer = o.getString( PRODUCT_MANUFACTURER );
-        manufacturer = manufacturer.toLowerCase();
+        String manufacturer = product.getString( PRODUCT_MANUFACTURER );
         if ( !manufacturerMap.containsKey( manufacturer ) ) {
+          // first time encountering this manufacturer;
+          // create a new stack containing the product
+          // and map the manufacturer to it
           Stack<JSONObject> s = new Stack<JSONObject>();
-          s.push( o );
+          s.push( product );
           manufacturerMap.put( manufacturer, s );
         } else {
-          manufacturerMap.get( manufacturer ).push( o );
+          // put the product in the manufacturer's map
+          manufacturerMap.get( manufacturer ).push( product );
         }
       }
     } catch ( Exception e ) {
-      System.err.println( "that was exceptional!" );
-      System.err.println( e + ":\n" + e.getStackTrace() );
-      System.exit( 2 );
+      handleException( e );
     }
   }
 
 
   /*
    * 
-   * 
+   */
+  protected static boolean familyAndModelMatch( JSONObject product,
+      String title )
+  throws JSONException
+  {
+    boolean result = false;
+    String model = product.getString( PRODUCT_MODEL );
+
+    // check whether the product has a family
+    if ( product.has( PRODUCT_FAMILY ) ) {
+      String family = product.getString( PRODUCT_FAMILY );
+      // since there is a family, the model must match with word boundaries
+      String pattern = ".*\\b" + model + "\\b.*";
+      if ( title.contains( family ) && title.matches( pattern ) ) {
+        result = true;
+      }
+    // no family, so do a simple contains match
+    } else if ( title.contains( model ) ) {
+      result = true;
+    }
+
+    return result;
+  }
+
+
+  /*
+   * processListingFile()
+   * Reads strings from r, expecting one JSON object per line.
    * 
    * 
    */
   protected static void processListingFile( FileReader r )
+  throws JSONException
   {
-    try {
-      // create a JSONTokener to read r
-      JSONTokener toke = new JSONTokener( r );
-      while ( toke.more() ) {
-        // get the next line
-        String str = toke.nextTo( '\n' );
-        // discard the newline
-        toke.next();
+    // create a JSONTokener to read r
+    JSONTokener tokener = new JSONTokener( r );
+    while ( tokener.more() ) {
+      // get the next line
+      String str = tokener.nextTo( '\n' );
+      // discard the newline
+      tokener.next();
 
-        // put original, "pristine" string in the pristine stack
-        JSONObject pristineO = new JSONObject( str );
+      // create a JSON object with the original string for result output
+      JSONObject originalListing = new JSONObject( str );
+      // normalize the string and create a JSON object
+      String con = normalizeString( str );
+      JSONObject listing = new JSONObject( con );
 
-        // convert the string to JSON and put it on the product stack
-        String con = normalizeString( str );
-
-        JSONObject o = new JSONObject( con );
-
-        // match manufacturers
-        String title = o.getString( LISTING_TITLE );
-        String manufacturer = o.getString( LISTING_MANUFACTURER );
-        manufacturer = manufacturer.toLowerCase().trim();
-        Iterator i = manufacturerMap.keySet().iterator();
-        while ( i.hasNext() ) {
-          String m = (String) i.next();
-          if ( manufacturer.contains( m ) ) {
-            // manufacturer matches, so check family/model
-            // get all products by that manufacturer
-            //System.err.println( "checking for family" );
-            Stack<JSONObject> s = (Stack<JSONObject>) manufacturerMap.get( m );
-            Iterator mi = s.iterator();
-            while ( mi.hasNext() ) {
-              JSONObject mo = (JSONObject) mi.next();
-              String name = productsMap.get( mo.getString( PRODUCT_NAME ) );
-              String model = mo.getString( PRODUCT_MODEL );
-              if ( mo.has( PRODUCT_FAMILY ) ) {
-                //System.err.println( "there's a family! checking model" );
-                String family = mo.getString( PRODUCT_FAMILY );
-                if ( manufacturer.equals( "nikon" ) ) {
-                  //System.err.println( "it's a nikon" );
-                  System.out.println( "\"" + title  + "\" contains \"" + family
-                      + "\" and \"" +  model + "\"?" );
-                }
-                if ( //title.contains( family )
-                    title.contains( family )
-                    && title.matches( ".*\\b" + model + "\\b.*" ) ) {
-                    //&& title.contains( model ) ) {
-                  if ( manufacturer.equals( "nikon" ) ) {
-                    System.out.println( "yes" );
-                  }
-                  resultsMap.get( name ).push( pristineO );
-                  //System.err.println( "pushed" );
-                  break;
-                }
-              } else {
-                //System.err.println( "no family, checking model" );
-                  if ( manufacturer.equals( "nikon" ) ) {
-                    System.out.println( title  + " contains " + model + "?");
-                  }
-                  if ( title.contains( model ) ) {
-                    // model matches, so add it to the product's
-                    // stack of listings in the results
-                    if ( manufacturer.equals( "nikon" ) ) {
-                      System.out.println( "yes" );
-                    }
-                    resultsMap.get( name ).push( pristineO );
-                    break;
-                  }
-              }
+      // match manufacturers
+      String title = listing.getString( LISTING_TITLE );
+      String listingManufacturer = listing.getString( LISTING_MANUFACTURER );
+      // loop through all manufacturers
+      Iterator manufacturerIterator = manufacturerMap.keySet().iterator();
+      while ( manufacturerIterator.hasNext() ) {
+        String manufacturer = (String) manufacturerIterator.next();
+        // check for a manufacturer match
+        if ( listingManufacturer.contains( manufacturer ) ) {
+          // manufacturer matches, so check family/model
+          Stack<JSONObject> s = (Stack<JSONObject>)
+              manufacturerMap.get( manufacturer );
+          // loop through all products by that manufacturer
+          Iterator productIterator = s.iterator();
+          while ( productIterator.hasNext() ) {
+            JSONObject product = (JSONObject) productIterator.next();
+            if ( familyAndModelMatch( product, title ) ) {
+              // it's a match!
+              // put the (original) listing on the product's results list
+              String name = product.getString( PRODUCT_NAME );
+              resultsMap.get( name ).push( originalListing );
+              // assume that a listing can only match one product;
+              // we had a match, so stop looping through products
+              break;
             }
-            break;
           }
         }
       }
-    } catch ( Exception e ) {
-      System.err.println( "that was exceptional!" );
-      System.err.println( e + ":\n" + e.getStackTrace() );
-      System.exit( 2 );
     }
   }
 
@@ -222,14 +231,12 @@ public class Match
             + listings + "}\n");
       }
 
-      System.out.println( "\nResults written to results.txt." );
+      System.out.println( "Results written to results.txt." );
       jsonWriter = null;
       resultWriter.close();
 
     } catch ( Exception e ) {
-      System.err.println( "that was exceptional!" );
-      System.err.println( e + ":\n" + e.getStackTrace() );
-      System.exit( 1 );
+      handleException( e );
     }
   }
 }

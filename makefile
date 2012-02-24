@@ -5,6 +5,9 @@ default: Match.java
 	@echo "If there are warnings, they're from org.json ..."
 	@echo ""
 
+sort: results.txt
+	sort results.txt > sorted.txt
+
 clean:
 	@echo "Cleaning ..."
 	rm -f Match.class results.txt
