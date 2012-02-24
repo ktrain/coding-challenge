@@ -1,5 +1,11 @@
-/* Entry for sortable.com coding challenge
+/*
+ * Entry for sortable.com coding challenge
  * by Kellen Steffen
+ *
+ * Reads products from PRODUCT_FILE and listings from LISTING_FILE,
+ * writing the match results to RESULT_FILE.
+ * As products are read, they are grouped by manufacturer.
+ * As each listing is read, it is matched by manufacturer
  */
 
 import java.util.Stack;
@@ -34,15 +40,7 @@ public class Match
       new HashMap<String,Stack<JSONObject>>();
   protected static HashMap<String,Stack<JSONObject>> manufacturerMap =
       new HashMap<String,Stack<JSONObject>>();
-
-
-  protected static void handleException( Exception e )
-  {
-    System.err.println( e );
-    System.err.println( e.getMessage() );
-    System.err.println( e.getStackTrace() );
-    System.exit( 1 );
-  }
+  protected static Stack<String> listingStack = new Stack<String>();
 
 
   protected static String normalizeString( String s )
@@ -60,12 +58,15 @@ public class Match
 
   /*
    * processProductFile()
-   * Reads strings from r, expecting one JSON object per line.
+   *
+   * Reads product strings from r, expecting one JSON object per line.
    * Normalizes all strings and converts the strings to JSONObjects.
    * Fills the manufacturerMap, which maps a manufacturer name to
    * the list of products that the manufacturer produces.
    * Also initializes the resultsMap with each product name mapping to
    * an empty list.
+   *
+   * Calls normalizeString()
    */
   protected static void processProductFile( FileReader r )
   {
@@ -110,7 +111,15 @@ public class Match
 
 
   /*
-   * 
+   * familyAndModelMatch()
+   *
+   * Checks the passed in title for the product family and model.
+   * If the product has a family (optional JSON data field), then
+   * the listing must contain the family and must match the WORD-BOUNDED
+   * model.
+   * If there is no family, then the listing must only contain the model.
+   * If a complete match is made, then the original listing is added to
+   * the product's result list.
    */
   protected static boolean familyAndModelMatch( JSONObject product,
       String title )
@@ -137,10 +146,59 @@ public class Match
 
 
   /*
+   * matchListing()
+   *
+   * Takes a listing and iterates through manufacturers looking for a match
+   * (a simple "contains" matching).
+   * If a match is made, then iterate over that manufacturer's products,
+   * calling familyAndModelMatch() with the listing for each.
+   * 
+   * Calls familyAndModelMatch()
+   */
+  protected static void matchListing( String listingStr )
+  throws JSONException
+  {
+    // create a JSON object for the original listing (for results output)
+    JSONObject originalListing = new JSONObject( listingStr );
+    // normalize and create a JSON object for matching
+    String con = normalizeString( listingStr );
+    JSONObject listing = new JSONObject( con );
+    String title = listing.getString( LISTING_TITLE );
+    String listingManufacturer = listing.getString( LISTING_MANUFACTURER );
+
+    // loop through all manufacturers
+    Iterator manufacturerIterator = manufacturerMap.keySet().iterator();
+    while ( manufacturerIterator.hasNext() ) {
+      String manufacturer = (String) manufacturerIterator.next();
+      // check for a manufacturer match
+      if ( listingManufacturer.contains( manufacturer ) ) {
+        // manufacturer matches, so check family/model
+        Stack<JSONObject> s = (Stack<JSONObject>)
+            manufacturerMap.get( manufacturer );
+        // loop through all products by that manufacturer
+        Iterator productIterator = s.iterator();
+        while ( productIterator.hasNext() ) {
+          JSONObject product = (JSONObject) productIterator.next();
+          if ( familyAndModelMatch( product, title ) ) {
+            // it's a match!
+            // put the (original) listing on the product's results list
+            String name = product.getString( PRODUCT_NAME );
+            resultsMap.get( name ).push( originalListing );
+            // assume that a listing can only match one product;
+            // we had a match, so stop looping through products
+            break;
+          }
+        }
+      }
+    }
+  }
+
+
+  /*
    * processListingFile()
-   * Reads strings from r, expecting one JSON object per line.
-   * 
-   * 
+   *
+   * Reads listing strings from r, expecting one JSON object per line.
+   * Puts each listing string on the listing stack.
    */
   protected static void processListingFile( FileReader r )
   throws JSONException
@@ -152,88 +210,75 @@ public class Match
       String str = tokener.nextTo( '\n' );
       // discard the newline
       tokener.next();
-
-      // create a JSON object with the original string for result output
-      JSONObject originalListing = new JSONObject( str );
-      // normalize the string and create a JSON object
-      String con = normalizeString( str );
-      JSONObject listing = new JSONObject( con );
-
-      // match manufacturers
-      String title = listing.getString( LISTING_TITLE );
-      String listingManufacturer = listing.getString( LISTING_MANUFACTURER );
-      // loop through all manufacturers
-      Iterator manufacturerIterator = manufacturerMap.keySet().iterator();
-      while ( manufacturerIterator.hasNext() ) {
-        String manufacturer = (String) manufacturerIterator.next();
-        // check for a manufacturer match
-        if ( listingManufacturer.contains( manufacturer ) ) {
-          // manufacturer matches, so check family/model
-          Stack<JSONObject> s = (Stack<JSONObject>)
-              manufacturerMap.get( manufacturer );
-          // loop through all products by that manufacturer
-          Iterator productIterator = s.iterator();
-          while ( productIterator.hasNext() ) {
-            JSONObject product = (JSONObject) productIterator.next();
-            if ( familyAndModelMatch( product, title ) ) {
-              // it's a match!
-              // put the (original) listing on the product's results list
-              String name = product.getString( PRODUCT_NAME );
-              resultsMap.get( name ).push( originalListing );
-              // assume that a listing can only match one product;
-              // we had a match, so stop looping through products
-              break;
-            }
-          }
-        }
-      }
+      // put the string on the listing stack
+      listingStack.push( str );
     }
   }
 
 
   /*
+   * handleException()
+   *
+   * Prints the Exception e and exits.
+   */
+  protected static void handleException( Exception e )
+  {
+    System.err.println( e );
+    System.err.println( e.getMessage() );
+    System.err.println( e.getStackTrace() );
+    System.exit( 1 );
+  }
+
+
+  /*
    * main()
+   *
    * reads and cross-matches the product and listing files,
    * writing the results to disk
+   *
+   * Calls processProductFile(), processListingFile(), matchListing(),
+   * handleException()
    */
   public static void main( String[] args )
   {
     FileReader productReader;
     FileReader listingReader;
     FileWriter resultWriter;
-    JSONWriter jsonWriter;
 
     try {
       // open up the product, listing, and result files
+      // do it all up front so that any I/O errors are discovered
+      // before any processing happens
       productReader = new FileReader( PRODUCT_FILE );
       listingReader = new FileReader( LISTING_FILE );
       resultWriter = new FileWriter( RESULT_FILE );
-      jsonWriter = new JSONWriter( resultWriter );
 
       // read the product file
       processProductFile( productReader );
       productReader.close();
 
-      // read the listing file
-      HashMap<String,Stack<JSONObject>> listingManufacturerMap =
-          new HashMap<String,Stack<JSONObject>>();
+      // read the listing file and do the matching
       processListingFile( listingReader );
       listingReader.close();
 
-      // compare products and listings
-      
+      // iterate over the listings and do the matching
+      Iterator listingIterator = listingStack.iterator();
+      while ( listingIterator.hasNext() ) {
+        String listingStr = (String) listingIterator.next();
+        matchListing( listingStr );
+      }
+
       // write the results to disk
-      Iterator i = resultsMap.keySet().iterator();
-      while ( i.hasNext() ) {
-        String name = (String) i.next();
+      Iterator resultsIterator = resultsMap.keySet().iterator();
+      while ( resultsIterator.hasNext() ) {
+        String name = (String) resultsIterator.next();
         Stack<JSONObject> listings = resultsMap.get( name );
         resultWriter.write( "{\"product_name\":\"" + name + "\",\"listings\":"
             + listings + "}\n");
       }
+      resultWriter.close();
 
       System.out.println( "Results written to results.txt." );
-      jsonWriter = null;
-      resultWriter.close();
 
     } catch ( Exception e ) {
       handleException( e );
