@@ -6,6 +6,7 @@ import java.util.Stack;
 import java.util.Iterator;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Pattern;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.text.Normalizer;
@@ -142,7 +143,10 @@ public class Match
                   System.out.println( "\"" + title  + "\" contains \"" + family
                       + "\" and \"" +  model + "\"?" );
                 }
-                if ( title.contains( family ) && title.contains( model ) ) {
+                if ( //title.contains( family )
+                    title.contains( family )
+                    && title.matches( ".*\\b" + model + "\\b.*" ) ) {
+                    //&& title.contains( model ) ) {
                   if ( manufacturer.equals( "nikon" ) ) {
                     System.out.println( "yes" );
                   }
