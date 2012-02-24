@@ -1,6 +1,6 @@
 default: Match.java
 	@echo "Compiling Match ..."
-	javac Match.java
+	javac -Xlint:unchecked Match.java
 	@echo ""
 	@echo "If there are warnings, they're from org.json ..."
 	@echo ""
