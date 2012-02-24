@@ -10,7 +10,7 @@ sort: results.txt
 
 clean:
 	@echo "Cleaning ..."
-	rm -f Match.class results.txt
+	rm -f Match.class results.txt sorted.txt
 	@echo ""
 	@echo "Squeaky."
 	@echo ""

@@ -5,7 +5,8 @@
  * Reads products from PRODUCT_FILE and listings from LISTING_FILE,
  * writing the match results to RESULT_FILE.
  * As products are read, they are grouped by manufacturer.
- * As each listing is read, it is matched by manufacturer
+ * As each listing is read, it is matched by manufacturer, then
+ * by product family (if present), and finally the model.
  */
 
 import java.util.Stack;
