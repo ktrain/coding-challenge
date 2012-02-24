@@ -12,11 +12,9 @@
 import java.util.Stack;
 import java.util.Iterator;
 import java.util.HashMap;
-import java.util.Map;
-import java.util.regex.Pattern;
 import java.io.FileReader;
 import java.io.FileWriter;
-import java.text.Normalizer;
+//import java.text.Normalizer;
 
 import org.json.*;
 

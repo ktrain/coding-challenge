@@ -1,6 +1,6 @@
 default: Match.java
 	@echo "Compiling Match ..."
-	javac -Xlint:unchecked Match.java
+	javac Match.java
 	@echo ""
 	@echo "If there are warnings, they're from org.json ..."
 	@echo ""
@@ -10,7 +10,8 @@ sort: results.txt
 
 clean:
 	@echo "Cleaning ..."
-	rm -f Match.class results.txt sorted.txt
+	cd org/json/ && $(RM) *.class
+	$(RM) Match.class results.txt sorted.txt
 	@echo ""
 	@echo "Squeaky."
 	@echo ""
