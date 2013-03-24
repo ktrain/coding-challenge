@@ -1,7 +1,4 @@
-Kellen Steffen
-kellen@hushmail.com
-
-This is my solution to the sortable.com coding challenge.
+This was my solution to the sortable.com 2012 coding challenge.
 
 To run, do:
 ./run
@@ -9,8 +6,8 @@ To run, do:
 It expects products.txt and listings.txt, and writes the results to results.txt.
 
 
-# DESIGN CONSIDERATIONS #
-#########################
+# DESIGN CONSIDERATIONS
+
 The first thing you need to know about me is that my absolute favourite
 data structure in the whole word is the stack.
 However, the only reason I could justify using them for this challenge
